@@ -1,3 +1,6 @@
 email,amount_cents,currency,decline_code,name,failed_at
 jane@acme.com,4900,usd,insufficient_funds,Jane Acme,2026-08-01T12:00:00.000Z
 sam@beta.dev,2900,usd,card_declined,Sam Beta,2026-08-12T09:30:00.000Z
+rita@orbit.io,9900,usd,insufficient_funds,Rita Orbit,2026-08-20T16:00:00.000Z
+lee@nook.app,1900,usd,,Lee Nook,2026-08-22T08:15:00.000Z
+pat@gray.dev,1500,usd,expired_card,Pat Gray,2026-08-25T11:00:00.000Z

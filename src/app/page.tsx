@@ -3,22 +3,47 @@ import { getOrCreateWorkspace } from "@/lib/workspace";
 import { ConnectStripe } from "@/components/ConnectStripe";
 import { CsvUpload } from "@/components/CsvUpload";
 import { FailedPaymentsList } from "@/components/FailedPaymentsList";
+import { FailingBreakdown, type CodeBucket } from "@/components/FailingBreakdown";
+import { normalizeDeclineCode, thirtyDaysAgo } from "@/lib/money";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage({
   searchParams,
 }: {
-  searchParams: Promise<{ connected?: string; error?: string; imported?: string }>;
+  searchParams: Promise<{ connected?: string; error?: string; imported?: string; code?: string }>;
 }) {
   const params = await searchParams;
+  const activeCode = params.code?.trim() || "all";
   const workspace = await getOrCreateWorkspace();
-  const payments = await prisma.failedPayment.findMany({
-    where: { workspaceId: workspace.id },
+  const since = thirtyDaysAgo();
+
+  const windowPayments = await prisma.failedPayment.findMany({
+    where: {
+      workspaceId: workspace.id,
+      status: "open",
+      failedAt: { gte: since },
+    },
     include: { customer: true },
     orderBy: { failedAt: "desc" },
-    take: 100,
   });
+
+  const totals = new Map<string, CodeBucket>();
+  let totalCents = 0;
+  for (const p of windowPayments) {
+    const code = normalizeDeclineCode(p.declineCode);
+    totalCents += p.amountCents;
+    const cur = totals.get(code) ?? { code, cents: 0, count: 0 };
+    cur.cents += p.amountCents;
+    cur.count += 1;
+    totals.set(code, cur);
+  }
+  const buckets = [...totals.values()].sort((a, b) => b.cents - a.cents);
+
+  const payments =
+    activeCode === "all"
+      ? windowPayments
+      : windowPayments.filter((p) => normalizeDeclineCode(p.declineCode) === activeCode);
 
   return (
     <main className="shell">
@@ -49,6 +74,8 @@ export default async function HomePage({
         <div className="flash ok">Imported {params.imported} failed payment(s).</div>
       ) : null}
 
+      <FailingBreakdown totalCents={totalCents} buckets={buckets} activeCode={activeCode} />
+
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="row">
           <div>
@@ -62,7 +89,10 @@ export default async function HomePage({
         </div>
       </div>
 
-      <FailedPaymentsList payments={payments} />
+      <FailedPaymentsList
+        payments={payments}
+        filterLabel={activeCode === "all" ? "last 30 days · open" : `${activeCode} · last 30 days · open`}
+      />
     </main>
   );
 }
