@@ -1,3 +1,5 @@
+import { formatCents } from "@/lib/money";
+
 type Payment = {
   id: string;
   amountCents: number;
@@ -9,14 +11,13 @@ type Payment = {
   customer: { email: string; name: string | null } | null;
 };
 
-function money(cents: number, currency: string) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: currency.toUpperCase(),
-  }).format(cents / 100);
-}
-
-export function FailedPaymentsList({ payments }: { payments: Payment[] }) {
+export function FailedPaymentsList({
+  payments,
+  filterLabel,
+}: {
+  payments: Payment[];
+  filterLabel?: string;
+}) {
   if (payments.length === 0) {
     return (
       <section className="card empty">
@@ -28,6 +29,10 @@ export function FailedPaymentsList({ payments }: { payments: Payment[] }) {
 
   return (
     <section className="card">
+      <div className="row" style={{ marginBottom: 8 }}>
+        <strong>Failed payments</strong>
+        {filterLabel ? <span className="muted">{filterLabel}</span> : null}
+      </div>
       <table>
         <thead>
           <tr>
@@ -43,8 +48,10 @@ export function FailedPaymentsList({ payments }: { payments: Payment[] }) {
           {payments.map((p) => (
             <tr key={p.id}>
               <td>{p.customer?.email ?? "—"}</td>
-              <td>{money(p.amountCents, p.currency)}</td>
-              <td>{p.declineCode ? <span className="pill">{p.declineCode}</span> : "—"}</td>
+              <td>{formatCents(p.amountCents, p.currency)}</td>
+              <td>
+                <span className="pill">{p.declineCode?.trim() ? p.declineCode : "unknown"}</span>
+              </td>
               <td>{p.source}</td>
               <td>{new Date(p.failedAt).toLocaleString()}</td>
               <td>{p.status}</td>
